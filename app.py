@@ -1,4 +1,5 @@
 import os
+import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,6 +21,10 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 with app.app_context():
     import models
     db.create_all()
+
+@app.template_filter('b64encode')
+def b64encode_filter(data):
+    return base64.b64encode(data).decode('utf-8')
 
 @app.route('/')
 def index():
@@ -94,7 +99,6 @@ def process_image():
             return redirect(request.url)
         
         if file:
-            # Process the image
             processed_images = []
             for _ in range(9):
                 processed_image = process_image_with_ai(file)
@@ -102,7 +106,6 @@ def process_image():
             
             final_image = combine_images(processed_images)
             
-            # Save the processed image
             user = models.User.query.get(session['user_id'])
             new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
             db.session.add(new_image)
