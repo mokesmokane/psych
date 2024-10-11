@@ -113,7 +113,7 @@ def process_image():
                 processed_images = []
                 for i in range(9):
                     logger.info(f'Processing image {i+1}/9')
-                    processed_image = process_image_with_ai(file)
+                    processed_image = process_image_with_ai(file, iteration=i)
                     if processed_image is None:
                         raise ValueError(f'Failed to process image {i+1} with AI')
                     processed_images.append(processed_image)

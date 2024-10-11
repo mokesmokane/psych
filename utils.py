@@ -12,29 +12,32 @@ logger = logging.getLogger(__name__)
 # Set up the OpenAI client
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
-def process_image_with_ai(image_file):
+def process_image_with_ai(image_file, iteration=0):
     try:
-        logger.info('Opening and resizing input image')
+        logger.info(f'Processing image iteration {iteration + 1}')
         img = Image.open(image_file)
         img = img.resize((1024, 1024))  # DALL-E 2 requires 1024x1024 images
         
-        logger.info('Converting image to bytes')
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
 
-        logger.info('Calling OpenAI API to generate psychedelic version')
+        # Increase intensity of psychedelic effects with each iteration
+        intensity = min(iteration * 0.2 + 0.2, 1.0)  # Scale from 0.2 to 1.0
+        prompt = f"Transform this image into a vibrant, colorful, and surreal psychedelic artwork. Intensity: {intensity:.1f}"
+        
+        logger.info(f'Calling OpenAI API with prompt: {prompt}')
         try:
             response = client.images.create_variation(
                 image=img_byte_arr,
                 n=1,
-                size="1024x1024"
+                size="1024x1024",
+                prompt=prompt
             )
         except Exception as api_error:
             logger.error(f"Error calling OpenAI API: {str(api_error)}")
             raise ValueError("Failed to generate image variation using OpenAI API")
 
-        logger.info('Getting URL of the generated image')
         image_url = response.data[0].url
         if not image_url:
             raise ValueError("OpenAI API response does not contain an image URL")
