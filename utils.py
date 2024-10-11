@@ -30,7 +30,6 @@ def process_image_with_ai(image_file, iteration=0):
         try:
             response = client.images.edit(
                 image=img_byte_arr,
-                mask=None,  # You can create a mask if needed
                 prompt=prompt,
                 n=1,
                 size="1024x1024"
