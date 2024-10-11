@@ -28,15 +28,16 @@ def process_image_with_ai(image_file, iteration=0):
         
         logger.info(f'Calling OpenAI API with prompt: {prompt}')
         try:
-            response = client.images.create_variation(
+            response = client.images.edit(
                 image=img_byte_arr,
+                mask=None,  # You can create a mask if needed
+                prompt=prompt,
                 n=1,
-                size="1024x1024",
-                prompt=prompt
+                size="1024x1024"
             )
         except Exception as api_error:
             logger.error(f"Error calling OpenAI API: {str(api_error)}")
-            raise ValueError("Failed to generate image variation using OpenAI API")
+            raise ValueError("Failed to generate image edit using OpenAI API")
 
         image_url = response.data[0].url
         if not image_url:
