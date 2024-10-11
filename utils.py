@@ -3,6 +3,7 @@ import io
 from PIL import Image
 import openai
 from openai import OpenAIError
+import requests
 
 # Set up the OpenAI API key
 openai.api_key = os.environ.get('OPENAI_API_KEY')
@@ -16,7 +17,7 @@ def process_image_with_ai(image_file):
         # Convert the image to bytes
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
+        img_byte_arr.seek(0)
 
         # Use DALL-E 2 to generate a psychedelic version of the image
         response = openai.Image.create_variation(
@@ -26,10 +27,9 @@ def process_image_with_ai(image_file):
         )
 
         # Get the URL of the generated image
-        image_url = response['data'][0]['url']
+        image_url = response.data[0].url
 
         # Download the generated image
-        import requests
         generated_image = requests.get(image_url).content
 
         return generated_image
