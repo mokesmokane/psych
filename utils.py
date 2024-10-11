@@ -15,7 +15,7 @@ client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 def process_image_with_ai(image_file, iteration=0):
     try:
         logger.info(f'Processing image iteration {iteration + 1}')
-        img = Image.open(image_file)
+        img = Image.open(image_file).convert('RGBA')
         img = img.resize((1024, 1024))  # DALL-E 2 requires 1024x1024 images
         
         img_byte_arr = io.BytesIO()
