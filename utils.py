@@ -1,12 +1,11 @@
 import os
 import io
 from PIL import Image
-import openai
-from openai import OpenAIError
+from openai import OpenAI
 import requests
 
-# Set up the OpenAI API key
-openai.api_key = os.environ.get('OPENAI_API_KEY')
+# Set up the OpenAI client
+client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
 def process_image_with_ai(image_file):
     try:
@@ -20,7 +19,7 @@ def process_image_with_ai(image_file):
         img_byte_arr.seek(0)
 
         # Use DALL-E 2 to generate a psychedelic version of the image
-        response = openai.Image.create_variation(
+        response = client.images.create_variation(
             image=img_byte_arr,
             n=1,
             size="1024x1024"
@@ -34,9 +33,6 @@ def process_image_with_ai(image_file):
 
         return generated_image
 
-    except OpenAIError as e:
-        print(f"OpenAI API error: {str(e)}")
-        return None
     except Exception as e:
         print(f"Error processing image: {str(e)}")
         return None
