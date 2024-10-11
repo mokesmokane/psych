@@ -1,12 +1,17 @@
 import os
 import base64
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import DeclarativeBase
 from config import Config
 from utils import process_image_with_ai, combine_images
 import stripe
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Check if OpenAI API key is set
 if not os.environ.get('OPENAI_API_KEY'):
@@ -94,23 +99,25 @@ def process_image():
     
     if request.method == 'POST':
         if 'photo' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
+            logger.error('No file part in the request')
+            return jsonify({'success': False, 'error': 'No file part'})
         
         file = request.files['photo']
         if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
+            logger.error('No selected file')
+            return jsonify({'success': False, 'error': 'No selected file'})
         
         if file:
             try:
                 processed_images = []
-                for _ in range(9):
+                for i in range(9):
+                    logger.info(f'Processing image {i+1}/9')
                     processed_image = process_image_with_ai(file)
                     if processed_image is None:
-                        raise ValueError("Failed to process image with AI")
+                        raise ValueError(f"Failed to process image {i+1} with AI")
                     processed_images.append(processed_image)
                 
+                logger.info('Combining processed images')
                 final_image = combine_images(processed_images)
                 
                 user = models.User.query.get(session['user_id'])
@@ -118,11 +125,11 @@ def process_image():
                 db.session.add(new_image)
                 db.session.commit()
                 
-                flash('Image processed successfully')
-                return redirect(url_for('dashboard'))
+                logger.info('Image processed and saved successfully')
+                return jsonify({'success': True, 'message': 'Image processed successfully'})
             except Exception as e:
-                flash(f'Error processing image: {str(e)}')
-                return redirect(request.url)
+                logger.error(f'Error processing image: {str(e)}')
+                return jsonify({'success': False, 'error': str(e)})
     
     return render_template('process_image.html')
 
@@ -148,9 +155,10 @@ def create_checkout_session():
             success_url=url_for('dashboard', _external=True),
             cancel_url=url_for('index', _external=True),
         )
-        return redirect(checkout_session.url, code=303)
+        return jsonify({'id': checkout_session.id})
     except Exception as e:
-        return str(e)
+        logger.error(f'Error creating checkout session: {str(e)}')
+        return jsonify({'error': str(e)}), 403
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
