@@ -1,24 +1,45 @@
-import requests
-from PIL import Image
+import os
 import io
+from PIL import Image
+import openai
+from openai import OpenAIError
+
+# Set up the OpenAI API key
+openai.api_key = os.environ.get('OPENAI_API_KEY')
 
 def process_image_with_ai(image_file):
-    # This is a placeholder function. In a real-world scenario, you would integrate
-    # with an actual AI image processing API (e.g., OpenAI's DALL-E or similar)
-    # For demonstration purposes, we'll just apply a simple filter to the image
-    img = Image.open(image_file)
-    img = img.convert('RGB')
-    
-    # Apply a simple psychedelic effect (color shift)
-    r, g, b = img.split()
-    img = Image.merge("RGB", (b, r, g))
-    
-    # Convert the processed image to bytes
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='PNG')
-    img_byte_arr = img_byte_arr.getvalue()
-    
-    return img_byte_arr
+    try:
+        # Open and resize the input image
+        img = Image.open(image_file)
+        img = img.resize((1024, 1024))  # DALL-E 2 requires 1024x1024 images
+        
+        # Convert the image to bytes
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format='PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # Use DALL-E 2 to generate a psychedelic version of the image
+        response = openai.Image.create_variation(
+            image=img_byte_arr,
+            n=1,
+            size="1024x1024"
+        )
+
+        # Get the URL of the generated image
+        image_url = response['data'][0]['url']
+
+        # Download the generated image
+        import requests
+        generated_image = requests.get(image_url).content
+
+        return generated_image
+
+    except OpenAIError as e:
+        print(f"OpenAI API error: {str(e)}")
+        return None
+    except Exception as e:
+        print(f"Error processing image: {str(e)}")
+        return None
 
 def combine_images(images):
     # Combine the 9 processed images into a single image

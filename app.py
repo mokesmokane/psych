@@ -8,6 +8,10 @@ from config import Config
 from utils import process_image_with_ai, combine_images
 import stripe
 
+# Check if OpenAI API key is set
+if not os.environ.get('OPENAI_API_KEY'):
+    raise ValueError("OpenAI API key is not set in the environment variables")
+
 class Base(DeclarativeBase):
     pass
 
@@ -99,20 +103,26 @@ def process_image():
             return redirect(request.url)
         
         if file:
-            processed_images = []
-            for _ in range(9):
-                processed_image = process_image_with_ai(file)
-                processed_images.append(processed_image)
-            
-            final_image = combine_images(processed_images)
-            
-            user = models.User.query.get(session['user_id'])
-            new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
-            db.session.add(new_image)
-            db.session.commit()
-            
-            flash('Image processed successfully')
-            return redirect(url_for('dashboard'))
+            try:
+                processed_images = []
+                for _ in range(9):
+                    processed_image = process_image_with_ai(file)
+                    if processed_image is None:
+                        raise ValueError("Failed to process image with AI")
+                    processed_images.append(processed_image)
+                
+                final_image = combine_images(processed_images)
+                
+                user = models.User.query.get(session['user_id'])
+                new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
+                db.session.add(new_image)
+                db.session.commit()
+                
+                flash('Image processed successfully')
+                return redirect(url_for('dashboard'))
+            except Exception as e:
+                flash(f'Error processing image: {str(e)}')
+                return redirect(request.url)
     
     return render_template('process_image.html')
 
