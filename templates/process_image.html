@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Process New Image</h2>
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="image-upload" class="form-label">Choose an image to process</label>
+        <input type="file" class="form-control" id="image-upload" name="photo" accept="image/*" required>
+    </div>
+    <img id="image-preview" class="image-preview" style="display: none;" alt="Image preview">
+    <button type="submit" class="btn btn-primary mt-3">Process Image</button>
+</form>
+{% endblock %}

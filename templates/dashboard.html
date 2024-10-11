@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>Welcome, {{ user.username }}!</h2>
+    <p>Here you can view your processed images and upload new ones.</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <a href="{{ url_for('process_image') }}" class="btn btn-primary">Process New Image</a>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <button id="stripe-button" class="btn btn-success">Buy More Credits</button>
+    </div>
+</div>
+
+<h3>Your Processed Images</h3>
+<div class="image-grid">
+    {% for image in images %}
+        <div class="card">
+            <img src="data:image/png;base64,{{ image.image_data|b64encode }}" class="card-img-top" alt="Processed Image">
+            <div class="card-body">
+                <p class="card-text">Created on: {{ image.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <a href="data:image/png;base64,{{ image.image_data|b64encode }}" download="psychedelic_image_{{ image.id }}.png" class="btn btn-sm btn-secondary">Download</a>
+            </div>
+        </div>
+    {% else %}
+        <p>You haven't processed any images yet. Try uploading one!</p>
+    {% endfor %}
+</div>
+{% endblock %}

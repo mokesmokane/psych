@@ -1,0 +1,27 @@
+/* Custom styles */
+.image-preview {
+    max-width: 100%;
+    height: auto;
+    margin-top: 1rem;
+}
+
+.processed-image {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+}
+
+.auth-form {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}

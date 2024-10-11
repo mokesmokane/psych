@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">Welcome to Psychedelic Image Processor</h1>
+    <p class="lead">Transform your photos with AI-generated psychedelic effects!</p>
+    <hr class="my-4">
+    <p>Upload your image, and we'll apply 9 layers of mind-bending effects to create a unique psychedelic masterpiece.</p>
+    {% if 'user_id' in session %}
+        <a class="btn btn-primary btn-lg" href="{{ url_for('process_image') }}" role="button">Start Processing</a>
+    {% else %}
+        <a class="btn btn-primary btn-lg" href="{{ url_for('register') }}" role="button">Get Started</a>
+    {% endif %}
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <h3>Upload</h3>
+        <p>Choose any photo from your device to start the psychedelic transformation.</p>
+    </div>
+    <div class="col-md-4">
+        <h3>Process</h3>
+        <p>Our AI applies 9 layers of unique psychedelic effects to your image.</p>
+    </div>
+    <div class="col-md-4">
+        <h3>Download</h3>
+        <p>Get your mind-bending masterpiece and share it with the world!</p>
+    </div>
+</div>
+{% endblock %}
