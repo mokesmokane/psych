@@ -100,26 +100,30 @@ def process_image():
     if request.method == 'POST':
         if 'photo' not in request.files:
             logger.error('No file part in the request')
-            return jsonify({'success': False, 'error': 'No file part'})
+            return jsonify({'success': False, 'error': 'No file part in the request. Please select an image to upload.'})
         
         file = request.files['photo']
         if file.filename == '':
             logger.error('No selected file')
-            return jsonify({'success': False, 'error': 'No selected file'})
+            return jsonify({'success': False, 'error': 'No file selected. Please choose an image to upload.'})
         
         if file:
             try:
+                logger.info(f'Starting image processing for user {session["user_id"]}')
                 processed_images = []
                 for i in range(9):
                     logger.info(f'Processing image {i+1}/9')
                     processed_image = process_image_with_ai(file)
                     if processed_image is None:
-                        raise ValueError(f"Failed to process image {i+1} with AI")
+                        raise ValueError(f'Failed to process image {i+1} with AI')
                     processed_images.append(processed_image)
                 
                 logger.info('Combining processed images')
                 final_image = combine_images(processed_images)
+                if final_image is None:
+                    raise ValueError('Failed to combine processed images')
                 
+                logger.info('Saving processed image to database')
                 user = models.User.query.get(session['user_id'])
                 new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
                 db.session.add(new_image)
@@ -127,9 +131,12 @@ def process_image():
                 
                 logger.info('Image processed and saved successfully')
                 return jsonify({'success': True, 'message': 'Image processed successfully'})
+            except ValueError as ve:
+                logger.error(f'ValueError in image processing: {str(ve)}')
+                return jsonify({'success': False, 'error': str(ve)})
             except Exception as e:
-                logger.error(f'Error processing image: {str(e)}')
-                return jsonify({'success': False, 'error': str(e)})
+                logger.error(f'Unexpected error in image processing: {str(e)}')
+                return jsonify({'success': False, 'error': 'An unexpected error occurred while processing the image. Please try again later.'})
     
     return render_template('process_image.html')
 

@@ -24,17 +24,29 @@ def process_image_with_ai(image_file):
         img_byte_arr.seek(0)
 
         logger.info('Calling OpenAI API to generate psychedelic version')
-        response = client.images.create_variation(
-            image=img_byte_arr,
-            n=1,
-            size="1024x1024"
-        )
+        try:
+            response = client.images.create_variation(
+                image=img_byte_arr,
+                n=1,
+                size="1024x1024"
+            )
+        except Exception as api_error:
+            logger.error(f"Error calling OpenAI API: {str(api_error)}")
+            raise ValueError("Failed to generate image variation using OpenAI API")
 
         logger.info('Getting URL of the generated image')
         image_url = response.data[0].url
+        if not image_url:
+            raise ValueError("OpenAI API response does not contain an image URL")
 
         logger.info('Downloading the generated image')
-        generated_image = requests.get(image_url).content
+        try:
+            response = requests.get(image_url)
+            response.raise_for_status()
+            generated_image = response.content
+        except requests.RequestException as req_error:
+            logger.error(f"Error downloading generated image: {str(req_error)}")
+            raise ValueError("Failed to download the generated image")
 
         return generated_image
 
@@ -45,6 +57,9 @@ def process_image_with_ai(image_file):
 def combine_images(images):
     try:
         logger.info('Combining processed images into a 3x3 grid')
+        if len(images) != 9:
+            raise ValueError(f"Expected 9 images, but got {len(images)}")
+
         base_img = Image.open(io.BytesIO(images[0]))
         width, height = base_img.size
         new_img = Image.new('RGB', (width * 3, height * 3))
