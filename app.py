@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import DeclarativeBase
 from config import Config
-from utils import process_image_with_ai
+from utils import process_image_with_ai, combine_images
 import stripe
 import logging
 
@@ -51,14 +51,9 @@ def register():
             flash('Email address already exists')
             return redirect(url_for('register'))
         
-        new_user = models.Ususer = models.User()
-        user.username = username
-        user.email = email
-        user.password_hash = generate_password_hash(password)
-        db.session.add(user)
-        db.session.commit()er(username=username, email=email, password_hash=generate_password_hash(password))
-                db.session.add(new_user)
-                db.session.commit()
+        new_user = models.User(username=username, email=email, password_hash=generate_password_hash(password))
+        db.session.add(new_user)
+        db.session.commit()
         
         flash('Registration successful. Please log in.')
         return redirect(url_for('login'))
@@ -115,16 +110,22 @@ def process_image():
         if file:
             try:
                 logger.info(f'Starting image processing for user {session["user_id"]}')
-                processed_image = process_image_with_ai(file)
-                if processed_image is None:
-                    raise ValueError('Failed to process image with AI')
+                processed_images = []
+                for i in range(9):
+                    logger.info(f'Processing image {i+1}/9')
+                    processed_image = process_image_with_ai(file, iteration=i)
+                    if processed_image is None:
+                        raise ValueError(f'Failed to process image {i+1} with AI')
+                    processed_images.append(processed_image)
+                
+                logger.info('Combining processed images')
+                final_image = combine_images(processed_images)
+                if final_image is None:
+                    raise ValueError('Failed to combine processed images')
                 
                 logger.info('Saving processed image to database')
                 user = models.User.query.get(session['user_id'])
-                new_image = models.ProcessedImage()
-                new_image.user_id=user.id
-                new_image.image_data=processed_image
-                
+                new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
                 db.session.add(new_image)
                 db.session.commit()
                 
@@ -151,7 +152,7 @@ def create_checkout_session():
                         'unit_amount': 1000,
                         'product_data': {
                             'name': 'Image Processing',
-                            'description': 'AI-generated outpainting effects',
+                            'description': 'AI-generated psychedelic effects',
                         },
                     },
                     'quantity': 1,
