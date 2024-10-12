@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded');
+    // Initialize Socket.IO
+    const socket = io();
+    
+    socket.on('connect', () => {
+        console.log('Socket.IO client connected');
+    });
+ 
+    socket.on('connect_error', (err) => {
+        console.error('Connection failed:', err);
+    });
+
     // Image upload preview
     const imageUpload = document.getElementById('image-upload');
     const imagePreview = document.getElementById('image-preview');
@@ -24,9 +36,11 @@ document.addEventListener('DOMContentLoaded', function() {
         processForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
+            const iterations = parseInt(formData.get('iterations'), 10);
             
             // Show processing status
             processingStatus.style.display = 'block';
+            processingStatus.textContent = 'Processing images...';
             
             fetch('/process_image', {
                 method: 'POST',
@@ -34,25 +48,52 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                // Hide processing status
-                processingStatus.style.display = 'none';
-                
                 if (data.success) {
-                    alert('Image processed successfully!');
-                    window.location.href = '/dashboard';
+                    // Processing started successfully, status is already shown
                 } else {
+                    processingStatus.style.display = 'none';
                     alert('Error: ' + data.error);
                 }
             })
             .catch(error => {
-                // Hide processing status
                 processingStatus.style.display = 'none';
-                
                 console.error('Error:', error);
                 alert('An error occurred while processing the image.');
             });
         });
     }
+
+    // Listen for 'joined' event to confirm connection
+    socket.on('joined', function(data) {
+        console.log('Joined room:', data.room);
+    });
+
+    // Listen for processed images
+    socket.on('image_processed', function(data) {
+        console.log('Received processed image:', data);
+        const img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + data.image_data;
+        img.classList.add('processed-image');
+
+        const container = document.getElementById('processed-images-container');
+        if (container) {
+            container.appendChild(img);
+        } else {
+            console.error('Container not found');
+        }
+
+        // Update processing status
+        if (processingStatus) {
+            const iterations = parseInt(document.getElementById('iterations').value, 10);
+            processingStatus.textContent = `Processing... ${data.iteration} of ${iterations} complete`;
+            if (data.iteration === iterations) {
+                processingStatus.textContent = 'Processing complete!';
+                setTimeout(() => {
+                    processingStatus.style.display = 'none';
+                }, 3000);
+            }
+        }
+    });
 
     // Stripe payment button
     const stripeButton = document.getElementById('stripe-button');

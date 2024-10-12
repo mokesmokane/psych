@@ -1,6 +1,6 @@
 import os
 import base64
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.orm import DeclarativeBase
@@ -8,6 +8,11 @@ from config import Config
 from utils import process_image_with_ai, combine_images
 import stripe
 import logging
+import threading
+from flask_socketio import SocketIO
+
+# Global variable to store processed images temporarily
+processed_images = []
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +29,7 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
+socketio = SocketIO(app)
 
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
 
@@ -45,19 +51,19 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        
+
         user = models.User.query.filter_by(email=email).first()
         if user:
             flash('Email address already exists')
             return redirect(url_for('register'))
-        
+
         new_user = models.User(username=username, email=email, password_hash=generate_password_hash(password))
         db.session.add(new_user)
         db.session.commit()
-        
+
         flash('Registration successful. Please log in.')
         return redirect(url_for('login'))
-    
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -65,7 +71,7 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
+
         user = models.User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
@@ -73,7 +79,7 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password')
-    
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -86,61 +92,79 @@ def logout():
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     user = models.User.query.get(session['user_id'])
     images = models.ProcessedImage.query.filter_by(user_id=user.id).all()
-    
+
     return render_template('dashboard.html', user=user, images=images)
+
+@socketio.on('connect')
+def handle_connect():
+    if 'user_id' in session:
+        # Join a room named after the user_id
+        socketio.emit('joined', {'room': session['user_id']})
+
+def process_images_in_background(initial_image, iterations, user_id):
+    with app.app_context():
+        processed_image = initial_image
+        for i in range(iterations):
+            logger.info(f'Processing image {i+1}/{iterations}')
+            processed_image = process_image_with_ai(processed_image, iteration=i)
+            if processed_image is None:
+                logger.error(f'Failed to process image {i+1} with AI')
+                break
+
+
+
+            # Emit the processed image to the client
+            encoded_image = base64.b64encode(processed_image).decode('utf-8')
+            socketio.emit('image_processed', {'image_data': encoded_image, 'iteration': i+1})
+            logger.info(f'Emitted processed image {i+1}/{iterations}')
+
+        # Save the final image to the database
+        if processed_image:
+            user = models.User.query.get(user_id)
+            new_image = models.ProcessedImage(user_id=user.id, image_data=processed_image)
+            db.session.add(new_image)
+            db.session.commit()
+            logger.info(f'Saved final image to database for user {user_id}')
 
 @app.route('/process_image', methods=['GET', 'POST'])
 def process_image():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
+
     if request.method == 'POST':
         if 'photo' not in request.files:
             logger.error('No file part in the request')
             return jsonify({'success': False, 'error': 'No file part in the request. Please select an image to upload.'})
-        
+
         file = request.files['photo']
         iterations = int(request.form.get('iterations', 9))
-        
+        iterations = max(1, min(iterations, 9))  # Ensure iterations is between 1 and 9
+
         if file.filename == '':
             logger.error('No selected file')
             return jsonify({'success': False, 'error': 'No file selected. Please choose an image to upload.'})
-        
-        if file and iterations:
-            try:
-                logger.info(f'Starting image processing for user {session["user_id"]} with {iterations} iterations')
-                processed_images = []
-                for i in range(iterations):
-                    logger.info(f'Processing image {i+1}/{iterations}')
-                    processed_image = process_image_with_ai(file, iteration=i)
-                    if processed_image is None:
-                        raise ValueError(f'Failed to process image {i+1} with AI')
-                    processed_images.append(processed_image)
-                
-                logger.info('Combining processed images')
-                final_image = combine_images(processed_images)
-                if final_image is None:
-                    raise ValueError('Failed to combine processed images')
-                
-                logger.info('Saving processed image to database')
-                user = models.User.query.get(session['user_id'])
-                new_image = models.ProcessedImage(user_id=user.id, image_data=final_image)
-                db.session.add(new_image)
-                db.session.commit()
-                
-                logger.info('Image processed and saved successfully')
-                return jsonify({'success': True, 'message': 'Image processed successfully'})
-            except ValueError as ve:
-                logger.error(f'ValueError in image processing: {str(ve)}')
-                return jsonify({'success': False, 'error': str(ve)})
-            except Exception as e:
-                logger.error(f'Unexpected error in image processing: {str(e)}')
-                return jsonify({'success': False, 'error': 'An unexpected error occurred while processing the image. Please try again later.'})
-    
+
+        try:
+            processed_image = file.read()  # Read the file data into memory
+
+            # Start a background thread to process images
+            thread = threading.Thread(target=process_images_in_background, args=(processed_image, iterations, session['user_id']))
+            thread.start()
+
+            return jsonify({'success': True, 'message': 'Image processing started', 'iterations': iterations})
+        except Exception as e:
+            logger.error(f'Error starting image processing: {str(e)}')
+            return jsonify({'success': False, 'error': 'An error occurred while starting image processing.'})
+
     return render_template('process_image.html')
+
+@app.route('/get_processed_images', methods=['GET'])
+def get_processed_images():
+    global processed_images
+    return jsonify({'images': [base64.b64encode(img).decode('utf-8') for img in processed_images]})
 
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
@@ -170,4 +194,4 @@ def create_checkout_session():
         return jsonify({'error': str(e)}), 403
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000)
