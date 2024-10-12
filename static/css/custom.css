@@ -23,13 +23,13 @@
 
 .image-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, 1fr); /* Fixed to 3 columns */
     gap: 1rem;
 }
 
 .image-placeholder {
     aspect-ratio: 1 / 1;
-    background-color: #ccc;
+    background-color: #ccc; 
     display: flex;
     align-items: center;
     justify-content: center;

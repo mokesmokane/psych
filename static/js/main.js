@@ -69,31 +69,43 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Listen for processed images
-    socket.on('image_processed', function(data) {
-        console.log('Received processed image:', data);
-        const img = document.createElement('img');
-        img.src = 'data:image/png;base64,' + data.image_data;
-        img.classList.add('processed-image');
+    // socket.on('image_processed', function(data) {
+    //     console.log('Received processed image:', data);
+    //     const img = document.createElement('img');
+    //     img.src = 'data:image/png;base64,' + data.image_data;
+    //     img.classList.add('processed-image');
 
-        const container = document.getElementById('processed-images-container');
-        if (container) {
-            container.appendChild(img);
-        } else {
-            console.error('Container not found');
-        }
+    //     const container = document.getElementById('processed-images-container');
+    //     if (container) {
+    //         // based on the iteration number, add the image to the correct position
+    //         container.children[data.iteration - 1].src = img.src;
+    //     } else {
+    //         console.error('Container not found');
+    //     }
 
-        // Update processing status
-        if (processingStatus) {
-            const iterations = parseInt(document.getElementById('iterations').value, 10);
-            processingStatus.textContent = `Processing... ${data.iteration} of ${iterations} complete`;
-            if (data.iteration === iterations) {
-                processingStatus.textContent = 'Processing complete!';
-                setTimeout(() => {
-                    processingStatus.style.display = 'none';
-                }, 3000);
-            }
-        }
-    });
+    //     // // Update processing status
+    //     // if (processingStatus) {
+    //     //     const iterations = parseInt(document.getElementById('iterations').value, 10);
+    //     //     processingStatus.textContent = `Processing... ${data.iteration} of ${iterations} complete`;
+    //     //     if (data.iteration === iterations) {
+    //     //         processingStatus.textContent = 'Processing complete!';
+    //     //         setTimeout(() => {
+    //     //             processingStatus.style.display = 'none';
+    //     //         }, 3000);
+    //     //     }
+    //     // }
+    // });
+    // // Listen for final image and display it instead of the initial image
+    // socket.on('final_image_processed', function(data) {
+    //     console.log('Received final processed image:', data);
+    //     const img = document.createElement('img');
+    //     img.src = 'data:image/png;base64,' + data.image_data;
+    //     img.classList.add('processed-image');
+
+    //     const container = document.getElementById('image-preview');
+    //     container.src = img.src;
+
+    // });
 
     // Stripe payment button
     const stripeButton = document.getElementById('stripe-button');

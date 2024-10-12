@@ -7,21 +7,78 @@
         <label for="image-upload" class="form-label">Choose an image to process</label>
         <input type="file" class="form-control" id="image-upload" name="photo" accept="image/*" required>
     </div>
-    <div class="mb-3">
+    <div id="image-preview-container" class="mb-3">
         <img id="image-preview" class="img-fluid" style="display:none;" alt="Image Preview">
     </div>
-    <div class="mb-3">
-        <label for="iterations" class="form-label">Number of psychedelic iterations (1-9)</label>
-        <input type="number" class="form-control" id="iterations" name="iterations" min="1" max="9" value="9" required>
-    </div>
+    {{ edit_1 }} <!-- Removed iterations input -->
+    <input type="hidden" name="iterations" value="8"> <!-- Hardcoded iterations value -->
     <button type="submit" class="btn btn-primary mt-3">Process Image</button>
 </form>
 
 <div id="processing-status" class="alert alert-info mt-3" style="display:none;">Processing...</div>
 
-<div id="processed-images-container" class="image-grid mt-4"></div>
+<div id="processed-images-container" class="image-grid mt-4">
+    {% if processed_images|length == 0 %}
+        {% for i in range(9) %}
+            <div class="image-placeholder"></div>
+        {% endfor %}
+    {% else %}
+        {% for image in processed_images %}
+            <img src="data:image/png;base64,{{ image.image_data|b64encode }}" class="processed-image" alt="Processed Image">
+        {% endfor %}
+        {% for i in range(9 - processed_images|length) %}
+            <div class="image-placeholder"></div>
+        {% endfor %}
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+<script>
+    // Ensure the image preview is updated correctly
+    const socket = io();
+    let processedImages = [];
+
+    // Update the processed images container as images are processed
+    socket.on('image_processed', function(data) {
+        const container = document.getElementById('processed-images-container');
+        
+        // Update your processed images array (you might need to maintain this array)
+        processedImages.push(data.image_data);
+
+        // Clear the container
+        container.innerHTML = '';
+
+        // Render processed images
+        processedImages.forEach(function(imageData) {
+            const img = document.createElement('img');
+            img.src = 'data:image/png;base64,' + imageData;
+            img.className = 'processed-image';
+            img.alt = 'Processed Image';
+            container.appendChild(img);
+        });
+        // same strategy as above clear the container and add the final image
+        console.log('Received final processed image:', data);
+        for (let i = processedImages.length; i < 9; i++) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'image-placeholder';
+            container.appendChild(placeholder);
+        }
+    });
+
+    // Update the preview image when the final image is processed
+    socket.on('final_image_processed', function(data) {
+        // same strategy as above clear the container and add the final image
+        console.log('Received final processed image:', data);
+        //replace the image preview with the final image
+        const container = document.getElementById('image-preview-container');
+        container.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + data.image_data;
+        img.className = 'processed-image';
+        img.alt = 'Processed Image';
+        container.appendChild(img);
+    });
+</script>
 {% endblock %}

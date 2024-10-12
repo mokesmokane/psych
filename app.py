@@ -10,6 +10,8 @@ import stripe
 import logging
 import threading
 from flask_socketio import SocketIO
+from PIL import Image
+import io
 
 # Global variable to store processed images temporarily
 processed_images = []
@@ -107,6 +109,9 @@ def handle_connect():
 def process_images_in_background(initial_image, iterations, user_id):
     with app.app_context():
         processed_image = initial_image
+        processed_images = []
+
+        # Emit the initial image to the client
         for i in range(iterations):
             logger.info(f'Processing image {i+1}/{iterations}')
             processed_image = process_image_with_ai(processed_image, iteration=i)
@@ -114,20 +119,35 @@ def process_images_in_background(initial_image, iterations, user_id):
                 logger.error(f'Failed to process image {i+1} with AI')
                 break
 
-
-
             # Emit the processed image to the client
             encoded_image = base64.b64encode(processed_image).decode('utf-8')
-            socketio.emit('image_processed', {'image_data': encoded_image, 'iteration': i+1})
+            iteration = i + 1 if i != 4 else i + 2
+            if i == 4:
+                img = Image.open(io.BytesIO(initial_image)).convert('RGB')
+                img = img.resize((1024, 1024))
+                img_byte_arr = io.BytesIO()
+                img.save(img_byte_arr, format='PNG')
+                img_byte_arr.seek(0)
+                processed_images.append(img_byte_arr.getvalue())  # Append raw bytes
+                encoded_initial_image = base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+                socketio.emit('image_processed', {'image_data': encoded_initial_image, 'iteration': 5})
+            processed_images.append(processed_image)
+            socketio.emit('image_processed', {'image_data': encoded_image, 'iteration': iteration})
             logger.info(f'Emitted processed image {i+1}/{iterations}')
 
-        # Save the final image to the database
-        if processed_image:
-            user = models.User.query.get(user_id)
-            new_image = models.ProcessedImage(user_id=user.id, image_data=processed_image)
-            db.session.add(new_image)
-            db.session.commit()
-            logger.info(f'Saved final image to database for user {user_id}')
+        combined_image = combine_images(processed_images)  # Combine all processed images
+        if combined_image is None:
+            logger.error('Combined image is None, cannot proceed with encoding and saving.')
+            return  # Exit the function or handle the error as needed
+
+        user = models.User.query.get(user_id)
+        new_image = models.ProcessedImage(user_id=user.id, image_data=combined_image)
+        # Emit the combined image to the client
+        encoded_image = base64.b64encode(combined_image).decode('utf-8')
+        socketio.emit('final_image_processed', {'image_data': encoded_image})
+        db.session.add(new_image)
+        db.session.commit()
+        logger.info(f'Saved combined image to database for user {user_id}')
 
 @app.route('/process_image', methods=['GET', 'POST'])
 def process_image():

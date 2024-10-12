@@ -25,8 +25,9 @@
                 <a href="data:image/png;base64,{{ image.image_data|b64encode }}" download="psychedelic_image_{{ image.id }}.png" class="btn btn-sm btn-secondary">Download</a>
             </div>
         </div>
-    {% else %}
-        <p>You haven't processed any images yet. Try uploading one!</p>
+    {% endfor %}
+    {% for i in range(9 - images|length) %}
+        <div class="image-placeholder"></div>
     {% endfor %}
 </div>
 {% endblock %}
