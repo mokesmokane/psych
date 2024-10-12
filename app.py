@@ -51,9 +51,14 @@ def register():
             flash('Email address already exists')
             return redirect(url_for('register'))
         
-        new_user = models.User(username=username, email=email, password_hash=generate_password_hash(password))
-        db.session.add(new_user)
-        db.session.commit()
+        new_user = models.Ususer = models.User()
+        user.username = username
+        user.email = email
+        user.password_hash = generate_password_hash(password)
+        db.session.add(user)
+        db.session.commit()er(username=username, email=email, password_hash=generate_password_hash(password))
+                db.session.add(new_user)
+                db.session.commit()
         
         flash('Registration successful. Please log in.')
         return redirect(url_for('login'))
@@ -116,7 +121,10 @@ def process_image():
                 
                 logger.info('Saving processed image to database')
                 user = models.User.query.get(session['user_id'])
-                new_image = models.ProcessedImage(user_id=user.id, image_data=processed_image)
+                new_image = models.ProcessedImage()
+                new_image.user_id=user.id
+                new_image.image_data=processed_image
+                
                 db.session.add(new_image)
                 db.session.commit()
                 
