@@ -13,9 +13,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Check if OpenAI API key is set
-if not os.environ.get('OPENAI_API_KEY'):
-    raise ValueError("OpenAI API key is not set in the environment variables")
+# Check if Stability AI API key is set
+if not os.environ.get('STABILITY_API_KEY'):
+    raise ValueError("Stability AI API key is not set in the environment variables")
 
 class Base(DeclarativeBase):
     pass

@@ -1,57 +1,70 @@
 import os
 import io
 from PIL import Image
-from openai import OpenAI
 import requests
 import logging
+import base64
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set up the OpenAI client
-client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+# Set up the Stability AI API key
+STABILITY_API_KEY = os.environ.get('STABILITY_API_KEY')
+if not STABILITY_API_KEY:
+    raise ValueError("Stability AI API key is not set in the environment variables")
 
 def process_image_with_ai(image_file, iteration=0):
     try:
         logger.info(f'Processing image iteration {iteration + 1}')
-        img = Image.open(image_file).convert('RGBA')
-        img = img.resize((1024, 1024))  # DALL-E 2 requires 1024x1024 images
+        img = Image.open(image_file).convert('RGB')
+        img = img.resize((512, 512))  # Stability AI requires 512x512 images
         
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
-
+        
         # Increase intensity of psychedelic effects with each iteration
         intensity = min(iteration * 0.2 + 0.2, 1.0)  # Scale from 0.2 to 1.0
         prompt = f"Transform this image into a vibrant, colorful, and surreal psychedelic artwork. Intensity: {intensity:.1f}"
         
-        logger.info(f'Calling OpenAI API with prompt: {prompt}')
+        logger.info(f'Calling Stability AI API with prompt: {prompt}')
         try:
-            response = client.images.edit(
-                image=img_byte_arr,
-                prompt=prompt,
-                n=1,
-                size="1024x1024"
+            response = requests.post(
+                "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/image-to-image",
+                headers={
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {STABILITY_API_KEY}"
+                },
+                files={
+                    "init_image": img_byte_arr
+                },
+                data={
+                    "init_image_mode": "IMAGE_STRENGTH",
+                    "image_strength": 0.35,
+                    "text_prompts[0][text]": prompt,
+                    "cfg_scale": 7,
+                    "samples": 1,
+                    "steps": 30,
+                }
             )
-        except Exception as api_error:
-            logger.error(f"Error calling OpenAI API: {str(api_error)}")
-            raise ValueError("Failed to generate image edit using OpenAI API")
-
-        image_url = response.data[0].url
-        if not image_url:
-            raise ValueError("OpenAI API response does not contain an image URL")
-
-        logger.info('Downloading the generated image')
-        try:
-            response = requests.get(image_url)
             response.raise_for_status()
-            generated_image = response.content
-        except requests.RequestException as req_error:
-            logger.error(f"Error downloading generated image: {str(req_error)}")
-            raise ValueError("Failed to download the generated image")
+        except requests.exceptions.RequestException as api_error:
+            logger.error(f"Error calling Stability AI API: {str(api_error)}")
+            raise ValueError("Failed to generate image using Stability AI API")
 
-        return generated_image
+        if response.status_code != 200:
+            raise ValueError(f"Non-200 response: {str(response.text)}")
+
+        data = response.json()
+        
+        if "artifacts" not in data:
+            raise ValueError("Stability AI API response does not contain artifacts")
+        
+        image_data_base64 = data["artifacts"][0]["base64"]
+        image_data = base64.b64decode(image_data_base64)
+
+        return image_data
 
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
