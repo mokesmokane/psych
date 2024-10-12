@@ -103,16 +103,18 @@ def process_image():
             return jsonify({'success': False, 'error': 'No file part in the request. Please select an image to upload.'})
         
         file = request.files['photo']
+        iterations = int(request.form.get('iterations', 9))
+        
         if file.filename == '':
             logger.error('No selected file')
             return jsonify({'success': False, 'error': 'No file selected. Please choose an image to upload.'})
         
-        if file:
+        if file and iterations:
             try:
-                logger.info(f'Starting image processing for user {session["user_id"]}')
+                logger.info(f'Starting image processing for user {session["user_id"]} with {iterations} iterations')
                 processed_images = []
-                for i in range(9):
-                    logger.info(f'Processing image {i+1}/9')
+                for i in range(iterations):
+                    logger.info(f'Processing image {i+1}/{iterations}')
                     processed_image = process_image_with_ai(file, iteration=i)
                     if processed_image is None:
                         raise ValueError(f'Failed to process image {i+1} with AI')

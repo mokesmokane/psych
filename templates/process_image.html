@@ -7,6 +7,10 @@
         <label for="image-upload" class="form-label">Choose an image to process</label>
         <input type="file" class="form-control" id="image-upload" name="photo" accept="image/*" required>
     </div>
+    <div class="mb-3">
+        <label for="iterations" class="form-label">Number of psychedelic iterations (1-9)</label>
+        <input type="number" class="form-control" id="iterations" name="iterations" min="1" max="9" value="9" required>
+    </div>
     <img id="image-preview" class="image-preview" style="display: none;" alt="Image preview">
     <button type="submit" class="btn btn-primary mt-3">Process Image</button>
 </form>
